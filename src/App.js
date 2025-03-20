@@ -22,7 +22,18 @@ function App() {
   const [filteredSkills, setFilteredSkills] = useState(skillsData);
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  // ✅ Now we don't need to add skillsData to the dependency array
+  // ✅ State for Weather Data
+  const [weather, setWeather] = useState(null);
+
+  // ✅ Fetch Weather Data from Netlify Function
+  useEffect(() => {
+    fetch("/.netlify/functions/api/weather")
+      .then((response) => response.json())
+      .then((data) => setWeather(data))
+      .catch((error) => console.error("Error fetching weather:", error));
+  }, []);
+
+  // ✅ Filter skills based on search and category
   useEffect(() => {
     let filtered = skillsData.filter((skill) =>
       skill.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -33,7 +44,7 @@ function App() {
     }
 
     setFilteredSkills(filtered);
-  }, [searchTerm, selectedCategory]); // ✅ No more missing dependency warning!
+  }, [searchTerm, selectedCategory]); 
 
   // Handle theme switch
   useEffect(() => {
@@ -44,13 +55,25 @@ function App() {
   return (
     <div className={`container mt-5 ${theme}`}>
       <h1 className="text-center">My Portfolio</h1>
-      
+
       {/* Theme Toggle Button */}
       <div className="text-center">
         <button className="btn btn-primary mb-4" onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
           Toggle {theme === "light" ? "Dark" : "Light"} Mode
         </button>
       </div>
+
+      {/* Weather Section */}
+      {weather ? (
+        <div className="weather-box text-center mb-4">
+          <h3>Weather in {weather.city}</h3>
+          <p>Temperature: {weather.temperature}°C</p>
+          <p>Humidity: {weather.humidity}%</p>
+          <p>Condition: {weather.condition}</p>
+        </div>
+      ) : (
+        <p className="text-center">Loading weather...</p>
+      )}
 
       {/* Skill Search Input */}
       <div className="text-center">
