@@ -10,7 +10,7 @@ app.use(cors());
 
 const router = express.Router();
 
-// ✅ API to get a list of projects
+// API to get a list of projects
 router.get("/projects", (req, res) => {
   const projects = [
     { id: 1, name: "Portfolio Website", author: "Harshil", languages: ["React", "CSS"], description: "A personal portfolio." },
@@ -20,7 +20,7 @@ router.get("/projects", (req, res) => {
   res.json(projects);
 });
 
-// ✅ API to get weather information
+// API to get weather information
 router.get("/weather", async (req, res) => {
   const apiKey = process.env.WEATHER_API_KEY;
   const city = "Halifax"; // You can later make this dynamic
@@ -43,7 +43,7 @@ router.get("/weather", async (req, res) => {
   }
 });
 
-// ✅ Register routes
+// Register routes
 app.use("/.netlify/functions/api", router);
 
 module.exports = app;

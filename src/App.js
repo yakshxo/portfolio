@@ -22,10 +22,10 @@ function App() {
   const [filteredSkills, setFilteredSkills] = useState(skillsData);
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  // ✅ State for Weather Data
+  // State for Weather Data
   const [weather, setWeather] = useState(null);
 
-  // ✅ Fetch Weather Data from Netlify Function
+  // Fetch Weather Data from Netlify Function
   useEffect(() => {
     fetch("/.netlify/functions/api/weather")
       .then((response) => response.json())
@@ -33,7 +33,7 @@ function App() {
       .catch((error) => console.error("Error fetching weather:", error));
   }, []);
 
-  // ✅ Filter skills based on search and category
+  // Filter skills based on search and category
   useEffect(() => {
     let filtered = skillsData.filter((skill) =>
       skill.name.toLowerCase().includes(searchTerm.toLowerCase())
