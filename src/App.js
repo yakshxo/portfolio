@@ -1,101 +1,74 @@
 import React, { useState, useEffect } from "react";
-import "./index.css"; 
-
-const skillsData = [
-  { name: "HTML", category: "Frontend" },
-  { name: "CSS", category: "Frontend" },
-  { name: "JavaScript", category: "Frontend" },
-  { name: "React", category: "Frontend" },
-  { name: "Node.js", category: "Backend" },
-  { name: "Express", category: "Backend" },
-  { name: "MongoDB", category: "Backend" },
-  { name: "UI/UX Design", category: "Design" },
-  { name: "Figma", category: "Design" },
-];
+import "./index.css";
 
 function App() {
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filteredSkills, setFilteredSkills] = useState(skillsData);
-  const [selectedCategory, setSelectedCategory] = useState("All");
   const [weather, setWeather] = useState(null);
+  const [messages, setMessages] = useState([]);
 
   const [formData, setFormData] = useState({
     name: localStorage.getItem("draftName") || "",
     email: localStorage.getItem("draftEmail") || "",
-    message: localStorage.getItem("draftMessage") || ""
+    subject: localStorage.getItem("draftSubject") || "",
+    message: localStorage.getItem("draftMessage") || "",
+    consent: localStorage.getItem("draftConsent") === "true"
   });
 
-  const [submissions, setSubmissions] = useState([]); // 🔥 NEW
+  const [errors, setErrors] = useState({});
 
-  // Load weather
   useEffect(() => {
     fetch("/.netlify/functions/api/weather")
-      .then((res) => res.json())
-      .then((data) => setWeather(data))
-      .catch((err) => console.error("Weather fetch error:", err));
+      .then(res => res.json())
+      .then(setWeather);
+
+    fetch("/.netlify/functions/api/messages")
+      .then(res => res.json())
+      .then(setMessages);
   }, []);
 
-  // Load stored messages
-  useEffect(() => {
-    fetch("/.netlify/functions/api/contact")
-      .then((res) => res.json())
-      .then((data) => setSubmissions(data.reverse())) // Most recent first
-      .catch((err) => console.error("Fetch messages error:", err));
-  }, []);
-
-  // Filter skills
-  useEffect(() => {
-    let filtered = skillsData.filter((skill) =>
-      skill.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (selectedCategory !== "All") {
-      filtered = filtered.filter((skill) => skill.category === selectedCategory);
-    }
-
-    setFilteredSkills(filtered);
-  }, [searchTerm, selectedCategory]);
-
-  // Theme effect
   useEffect(() => {
     localStorage.setItem("theme", theme);
     document.body.className = theme;
   }, [theme]);
 
-  // Draft saver
-  const updateForm = (field, value) => {
-    const newData = { ...formData, [field]: value };
-    setFormData(newData);
-    localStorage.setItem(`draft${field.charAt(0).toUpperCase() + field.slice(1)}`, value);
+  useEffect(() => {
+    for (const key in formData) {
+      localStorage.setItem(`draft${key.charAt(0).toUpperCase() + key.slice(1)}`, formData[key]);
+    }
+  }, [formData]);
+
+  const validate = () => {
+    const errs = {};
+    if (!/^[A-Za-zÀ-ÿ ,.'-]+$/.test(formData.name)) errs.name = "Invalid name";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errs.email = "Invalid email";
+    if (!/^[A-Za-z\s]+$/.test(formData.subject)) errs.subject = "Subject must be letters only";
+    if (/[<>]/.test(formData.message)) errs.message = "No HTML tags allowed";
+    if (!formData.consent) errs.consent = "Consent is required";
+    return errs;
   };
 
-  // Submit form
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: field === "consent" ? value.target.checked : value }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationErrors = validate();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
 
-    try {
-      const response = await fetch("/.netlify/functions/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
+    const response = await fetch("/.netlify/functions/api/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData)
+    });
 
-      if (response.ok) {
-        alert("Message sent!");
-        setFormData({ name: "", email: "", message: "" });
-        localStorage.removeItem("draftName");
-        localStorage.removeItem("draftEmail");
-        localStorage.removeItem("draftMessage");
-
-        const updated = await fetch("/.netlify/functions/api/contact").then(res => res.json());
-        setSubmissions(updated.reverse());
-      } else {
-        alert("Error sending message.");
-      }
-    } catch (error) {
-      console.error("Submission error:", error);
-      alert("Server error.");
+    if (response.ok) {
+      setFormData({ name: "", email: "", subject: "", message: "", consent: false });
+      localStorage.clear();
+      fetch("/.netlify/functions/api/messages")
+        .then(res => res.json())
+        .then(setMessages);
     }
   };
 
@@ -103,113 +76,75 @@ function App() {
     <div className={`container mt-5 ${theme}`}>
       <h1 className="text-center">My Portfolio</h1>
 
-      {/* Theme Switch */}
       <div className="text-center">
         <button className="btn btn-primary mb-4" onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
           Toggle {theme === "light" ? "Dark" : "Light"} Mode
         </button>
       </div>
 
-      {/* Weather Info */}
-      {weather ? (
+      {weather && (
         <div className="weather-box text-center mb-4">
           <h3>Weather in {weather.city}</h3>
-          <p>Temperature: {weather.temperature}°C</p>
-          <p>Humidity: {weather.humidity}%</p>
-          <p>Condition: {weather.condition}</p>
+          <p>Temp: {weather.temperature}°C | Humidity: {weather.humidity}% | {weather.condition}</p>
         </div>
-      ) : (
-        <p className="text-center">Loading weather...</p>
       )}
 
-      {/* Skill Search */}
-      <div className="text-center">
-        <input
-          type="text"
-          className="form-control mb-3"
-          placeholder="Search skills..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* Category Filter */}
-      <div className="text-center">
-        <select className="form-select mb-3" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-          <option value="All">All Categories</option>
-          <option value="Frontend">Frontend</option>
-          <option value="Backend">Backend</option>
-          <option value="Design">Design</option>
-        </select>
-      </div>
-
-      {/* Skill List */}
-      <ul className="list-group mb-5">
-        {filteredSkills.length > 0 ? (
-          filteredSkills.map((skill, index) => (
-            <li key={index} className="list-group-item">
-              {skill.name} - <strong>{skill.category}</strong>
-            </li>
-          ))
-        ) : (
-          <li className="list-group-item text-center">No skills found</li>
-        )}
-      </ul>
-
-      {/* Contact Form */}
       <div className="container mb-5">
         <h2>Contact Me</h2>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
+          {["name", "email", "subject"].map((field) => (
+            <div className="mb-3" key={field}>
+              <label className="form-label">{field.charAt(0).toUpperCase() + field.slice(1)}</label>
+              <input
+                type={field === "email" ? "email" : "text"}
+                className={`form-control ${errors[field] ? "is-invalid" : ""}`}
+                value={formData[field]}
+                onChange={(e) => handleChange(field, e.target.value)}
+                required
+              />
+              {errors[field] && <div className="invalid-feedback">{errors[field]}</div>}
+            </div>
+          ))}
           <div className="mb-3">
-            <label htmlFor="name" className="form-label">Name</label>
-            <input
-              type="text"
-              id="name"
-              className="form-control"
-              value={formData.name}
-              onChange={(e) => updateForm("name", e.target.value)}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label htmlFor="email" className="form-label">Email</label>
-            <input
-              type="email"
-              id="email"
-              className="form-control"
-              value={formData.email}
-              onChange={(e) => updateForm("email", e.target.value)}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label htmlFor="message" className="form-label">Message</label>
+            <label className="form-label">Message</label>
             <textarea
-              id="message"
-              className="form-control"
-              rows="4"
+              className={`form-control ${errors.message ? "is-invalid" : ""}`}
               value={formData.message}
-              onChange={(e) => updateForm("message", e.target.value)}
+              onChange={(e) => handleChange("message", e.target.value)}
               required
-            ></textarea>
+            />
+            {errors.message && <div className="invalid-feedback">{errors.message}</div>}
+          </div>
+          <div className="form-check mb-3">
+            <input
+              className={`form-check-input ${errors.consent ? "is-invalid" : ""}`}
+              type="checkbox"
+              id="consent"
+              checked={formData.consent}
+              onChange={(e) => handleChange("consent", e)}
+              required
+            />
+            <label className="form-check-label" htmlFor="consent">
+              I consent to be contacted and my data to be stored securely.
+            </label>
+            {errors.consent && <div className="invalid-feedback d-block">{errors.consent}</div>}
           </div>
           <button type="submit" className="btn btn-success">Send</button>
         </form>
       </div>
 
-      {/* 🔥 Message Display */}
       <div className="container mb-5">
-        <h2>Contact Messages</h2>
-        {submissions.length > 0 ? (
+        <h2>Messages</h2>
+        {messages.length > 0 ? (
           <ul className="list-group">
-            {submissions.map((entry, i) => (
+            {messages.map((m, i) => (
               <li key={i} className="list-group-item">
-                <strong>{entry.name}</strong> ({entry.email}): {entry.message}
+                <strong>{m.name}</strong> - <em>{m.subject}</em><br />{m.message}
               </li>
             ))}
           </ul>
         ) : (
-          <p>No messages submitted yet.</p>
+          <p>No messages yet.</p>
         )}
       </div>
     </div>
