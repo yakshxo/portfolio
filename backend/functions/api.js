@@ -2,9 +2,7 @@ const express = require("express");
 const serverless = require("serverless-http");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const fs = require("fs");
-const path = require("path");
-const fetch = require("node-fetch"); // Version 2
+const fetch = require("node-fetch"); 
 
 dotenv.config();
 const app = express();
@@ -13,13 +11,15 @@ app.use(express.json());
 
 const router = express.Router();
 
-// ✅ GET Weather
+let messages = [];
 router.get("/weather", async (req, res) => {
   const apiKey = process.env.WEATHER_API_KEY;
   const city = "Halifax";
 
   try {
-    const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`);
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`
+    );
     const data = await response.json();
 
     const weatherInfo = {
@@ -35,7 +35,6 @@ router.get("/weather", async (req, res) => {
   }
 });
 
-// ✅ POST Contact Form
 router.post("/contact", (req, res) => {
   const { name, email, message } = req.body;
 
@@ -43,34 +42,22 @@ router.post("/contact", (req, res) => {
     return res.status(400).json({ error: "All fields are required." });
   }
 
-  const filePath = path.join(__dirname, "messages.json");
+  const newMessage = {
+    name,
+    email,
+    message,
+    timestamp: new Date().toISOString(),
+  };
 
-  let existingMessages = [];
-  if (fs.existsSync(filePath)) {
-    const rawData = fs.readFileSync(filePath);
-    existingMessages = JSON.parse(rawData);
-  }
-
-  const newMessage = { name, email, message, timestamp: new Date().toISOString() };
-  existingMessages.push(newMessage);
-  fs.writeFileSync(filePath, JSON.stringify(existingMessages, null, 2));
-
+  messages.push(newMessage);
   res.json({ success: true, message: "Message received!" });
 });
 
-// ✅ GET All Messages
 router.get("/messages", (req, res) => {
-  const filePath = path.join(__dirname, "messages.json");
-
-  if (fs.existsSync(filePath)) {
-    const rawData = fs.readFileSync(filePath);
-    const messages = JSON.parse(rawData);
-    return res.json(messages);
-  } else {
-    return res.json([]);
-  }
+  res.json(messages);
 });
 
 app.use("/.netlify/functions/api", router);
+
 module.exports = app;
 module.exports.handler = serverless(app);
