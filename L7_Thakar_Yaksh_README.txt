@@ -1,6 +1,21 @@
-# Getting Started with Create React App
+# Lecture 9 - JavaScript ES6: Registration Form Enhancement
+
+* *Date Created*: 18 March 2025
+* *Last Modification Date*: 21 March 2025
+* *Lab URL*: <https://celebrated-paprenjak-38378b.netlify.app>
+
+## Author
+* [Yaksh Thakar](yk915929@dal.ca) - Developer
+
+## Built With
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+
+
+## Submission Details
+
+- **GiHub Repository**: <https://github.com/yakshxo/portfolio#>
+- **Netlify URL**: <https://celebrated-paprenjak-38378b.netlify.app>
 
 ## Available Scripts
 

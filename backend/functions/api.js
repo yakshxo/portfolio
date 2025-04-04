@@ -2,49 +2,75 @@ const express = require("express");
 const serverless = require("serverless-http");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const fetch = require("node-fetch"); // Version 2 for compatibility
+const fs = require("fs");
+const path = require("path");
+const fetch = require("node-fetch"); // Version 2
 
 dotenv.config();
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 const router = express.Router();
 
-// API to get a list of projects
-router.get("/projects", (req, res) => {
-  const projects = [
-    { id: 1, name: "Portfolio Website", author: "Harshil", languages: ["React", "CSS"], description: "A personal portfolio." },
-    { id: 2, name: "E-commerce App", author: "Harshil", languages: ["Node.js", "MongoDB"], description: "A full-stack e-commerce platform." },
-    { id: 3, name: "Weather App", author: "Harshil", languages: ["JavaScript", "API"], description: "Fetches real-time weather data." },
-  ];
-  res.json(projects);
-});
-
-// API to get weather information
+// ✅ GET Weather
 router.get("/weather", async (req, res) => {
   const apiKey = process.env.WEATHER_API_KEY;
-  const city = "Halifax"; // You can later make this dynamic
+  const city = "Halifax";
 
   try {
     const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`);
-    const weatherData = await response.json();
+    const data = await response.json();
 
-    // Extract necessary details
     const weatherInfo = {
-      city: weatherData.name,
-      temperature: weatherData.main.temp,
-      humidity: weatherData.main.humidity,
-      condition: weatherData.weather[0].description,
+      city: data.name,
+      temperature: data.main.temp,
+      humidity: data.main.humidity,
+      condition: data.weather[0].description,
     };
 
     res.json(weatherInfo);
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({ error: "Failed to fetch weather data" });
   }
 });
 
-// Register routes
-app.use("/.netlify/functions/api", router);
+// ✅ POST Contact Form
+router.post("/contact", (req, res) => {
+  const { name, email, message } = req.body;
 
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: "All fields are required." });
+  }
+
+  const filePath = path.join(__dirname, "messages.json");
+
+  let existingMessages = [];
+  if (fs.existsSync(filePath)) {
+    const rawData = fs.readFileSync(filePath);
+    existingMessages = JSON.parse(rawData);
+  }
+
+  const newMessage = { name, email, message, timestamp: new Date().toISOString() };
+  existingMessages.push(newMessage);
+  fs.writeFileSync(filePath, JSON.stringify(existingMessages, null, 2));
+
+  res.json({ success: true, message: "Message received!" });
+});
+
+// ✅ GET All Messages
+router.get("/messages", (req, res) => {
+  const filePath = path.join(__dirname, "messages.json");
+
+  if (fs.existsSync(filePath)) {
+    const rawData = fs.readFileSync(filePath);
+    const messages = JSON.parse(rawData);
+    return res.json(messages);
+  } else {
+    return res.json([]);
+  }
+});
+
+app.use("/.netlify/functions/api", router);
 module.exports = app;
 module.exports.handler = serverless(app);
