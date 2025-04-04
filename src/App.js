@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from "react";
 import "./index.css";
 
+const skillsData = [
+  { name: "HTML", category: "Frontend" },
+  { name: "CSS", category: "Frontend" },
+  { name: "JavaScript", category: "Frontend" },
+  { name: "React", category: "Frontend" },
+  { name: "Node.js", category: "Backend" },
+  { name: "Express", category: "Backend" },
+  { name: "MongoDB", category: "Backend" },
+  { name: "UI/UX Design", category: "Design" },
+  { name: "Figma", category: "Design" },
+];
+
 function App() {
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [filteredSkills, setFilteredSkills] = useState(skillsData);
   const [weather, setWeather] = useState(null);
   const [messages, setMessages] = useState([]);
 
@@ -18,12 +33,14 @@ function App() {
 
   useEffect(() => {
     fetch("/.netlify/functions/api/weather")
-      .then(res => res.json())
-      .then(setWeather);
+      .then((res) => res.json())
+      .then(setWeather)
+      .catch((err) => console.error("Weather error", err));
 
     fetch("/.netlify/functions/api/messages")
-      .then(res => res.json())
-      .then(setMessages);
+      .then((res) => res.json())
+      .then(setMessages)
+      .catch((err) => console.error("Messages error", err));
   }, []);
 
   useEffect(() => {
@@ -32,43 +49,67 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    for (const key in formData) {
-      localStorage.setItem(`draft${key.charAt(0).toUpperCase() + key.slice(1)}`, formData[key]);
-    }
+    localStorage.setItem("draftName", formData.name);
+    localStorage.setItem("draftEmail", formData.email);
+    localStorage.setItem("draftSubject", formData.subject);
+    localStorage.setItem("draftMessage", formData.message);
+    localStorage.setItem("draftConsent", formData.consent.toString());
   }, [formData]);
+
+  useEffect(() => {
+    let filtered = skillsData.filter((skill) =>
+      skill.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    if (selectedCategory !== "All") {
+      filtered = filtered.filter((skill) => skill.category === selectedCategory);
+    }
+    setFilteredSkills(filtered);
+  }, [searchTerm, selectedCategory]);
 
   const validate = () => {
     const errs = {};
     if (!/^[A-Za-zÀ-ÿ ,.'-]+$/.test(formData.name)) errs.name = "Invalid name";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errs.email = "Invalid email";
-    if (!/^[A-Za-z\s]+$/.test(formData.subject)) errs.subject = "Subject must be letters only";
-    if (/[<>]/.test(formData.message)) errs.message = "No HTML tags allowed";
+    if (!/^[A-Za-z\s]+$/.test(formData.subject)) errs.subject = "Letters only";
+    if (/[<>]/.test(formData.message)) errs.message = "HTML tags not allowed";
     if (!formData.consent) errs.consent = "Consent is required";
     return errs;
   };
 
+
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: field === "consent" ? value.target.checked : value }));
+    setFormData((prev) => ({
+      ...prev,
+      [field]: field === "consent" ? value.target.checked : value,
+    }));
   };
 
+  // 📬 Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
 
-    const response = await fetch("/.netlify/functions/api/contact", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData)
-    });
+    try {
+      const res = await fetch("/.netlify/functions/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-    if (response.ok) {
-      setFormData({ name: "", email: "", subject: "", message: "", consent: false });
-      localStorage.clear();
-      fetch("/.netlify/functions/api/messages")
-        .then(res => res.json())
-        .then(setMessages);
+      if (res.ok) {
+        alert("Message sent!");
+        setFormData({ name: "", email: "", subject: "", message: "", consent: false });
+        localStorage.clear();
+        const updated = await fetch("/.netlify/functions/api/messages").then((r) => r.json());
+        setMessages(updated);
+      } else {
+        alert("Error sending message.");
+      }
+    } catch (err) {
+      console.error("Submit error", err);
+      alert("Server error.");
     }
   };
 
@@ -83,11 +124,40 @@ function App() {
       </div>
 
       {weather && (
-        <div className="weather-box text-center mb-4">
+        <div className="text-center mb-4">
           <h3>Weather in {weather.city}</h3>
-          <p>Temp: {weather.temperature}°C | Humidity: {weather.humidity}% | {weather.condition}</p>
+          <p>{weather.temperature}°C, {weather.humidity}% humidity, {weather.condition}</p>
         </div>
       )}
+
+      <div className="text-center">
+        <input
+          type="text"
+          className="form-control mb-3"
+          placeholder="Search skills..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <select className="form-select mb-3" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+          <option value="All">All Categories</option>
+          <option value="Frontend">Frontend</option>
+          <option value="Backend">Backend</option>
+          <option value="Design">Design</option>
+        </select>
+      </div>
+
+      {/* 💻 Skills */}
+      <ul className="list-group mb-5">
+        {filteredSkills.length > 0 ? (
+          filteredSkills.map((skill, index) => (
+            <li key={index} className="list-group-item">
+              {skill.name} - <strong>{skill.category}</strong>
+            </li>
+          ))
+        ) : (
+          <li className="list-group-item text-center">No skills found</li>
+        )}
+      </ul>
 
       <div className="container mb-5">
         <h2>Contact Me</h2>
@@ -125,7 +195,7 @@ function App() {
               required
             />
             <label className="form-check-label" htmlFor="consent">
-              I consent to be contacted and my data to be stored securely.
+              I consent to be contacted and my data stored securely.
             </label>
             {errors.consent && <div className="invalid-feedback d-block">{errors.consent}</div>}
           </div>
@@ -137,9 +207,10 @@ function App() {
         <h2>Messages</h2>
         {messages.length > 0 ? (
           <ul className="list-group">
-            {messages.map((m, i) => (
-              <li key={i} className="list-group-item">
-                <strong>{m.name}</strong> - <em>{m.subject}</em><br />{m.message}
+            {messages.map((msg, index) => (
+              <li key={index} className="list-group-item">
+                <strong>{msg.name}</strong> - <em>{msg.subject}</em><br />
+                {msg.message}
               </li>
             ))}
           </ul>
