@@ -462,29 +462,9 @@ export default function App() {
                     ))}
                   </ul>
 
-                  <div className="project-links">
-                    {project.live && (
-                      <a
-                    href={project.live}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="project-btn live"
-    >
-                    Live Demo <ExternalLink size={16} />
-                </a>
-              )}
-
-  {project.github && (
-    <a
-      href={project.github}
-      target="_blank"
-      rel="noreferrer"
-      className="project-btn github"
-    >
-      View Code <Github size={16} />
-    </a>
-  )}
-</div>
+                  <button className="project-link" type="button">
+                    View Summary <ExternalLink size={16} />
+                  </button>
                 </div>
               );
             })}
